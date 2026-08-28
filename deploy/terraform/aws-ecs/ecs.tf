@@ -155,16 +155,20 @@ resource "aws_iam_role" "ecs_task" {
 }
 
 locals {
-  secret_env = compact([
-    var.openai_secret_arn != "" ? {
-      name      = "OPENAI_API_KEY"
-      valueFrom = var.openai_secret_arn
-    } : null,
-    var.anthropic_secret_arn != "" ? {
-      name      = "ANTHROPIC_API_KEY"
-      valueFrom = var.anthropic_secret_arn
-    } : null,
-  ])
+  secret_env = concat(
+    var.openai_secret_arn != "" ? [
+      {
+        name      = "OPENAI_API_KEY"
+        valueFrom = var.openai_secret_arn
+      }
+    ] : [],
+    var.anthropic_secret_arn != "" ? [
+      {
+        name      = "ANTHROPIC_API_KEY"
+        valueFrom = var.anthropic_secret_arn
+      }
+    ] : []
+  )
 }
 
 resource "aws_ecs_task_definition" "api" {
