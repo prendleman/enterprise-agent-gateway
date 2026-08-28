@@ -23,14 +23,16 @@ class OpenAIProvider(LLMProvider):
         api_key: str | None,
         pricing: PricingCatalog | None = None,
         default_model: str = "gpt-4o-mini",
+        supported_models: list[str] | None = None,
     ) -> None:
         self._api_key = api_key
         self._pricing = pricing
         self._default_model = default_model
+        models = supported_models or [default_model]
         self._capabilities = ProviderCapabilities(
             name="openai",
             display_name="OpenAI",
-            models=["gpt-4o-mini", "gpt-4o"],
+            models=models,
             default_model=default_model,
             quality_score=0.85,
             enabled=api_key is not None,

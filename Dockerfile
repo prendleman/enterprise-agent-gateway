@@ -19,7 +19,7 @@ COPY src ./src
 
 RUN pip install --no-cache-dir uv \
     && uv venv /opt/venv \
-    && uv pip install --python /opt/venv/bin/python .
+    && uv pip install --python /opt/venv/bin/python ".[providers]"
 
 # --- runtime: non-root, minimal image ---
 FROM python:3.12-slim AS runtime

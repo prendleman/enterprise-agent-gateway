@@ -94,9 +94,18 @@ class Settings(BaseSettings):
         default="config/model_pricing.example.yaml",
         alias="MODEL_PRICING_PATH",
     )
+    models_config_path: str = Field(
+        default="config/models.example.yaml",
+        alias="MODELS_CONFIG_PATH",
+    )
 
     openai_api_key: str | None = Field(default=None, alias="OPENAI_API_KEY")
     anthropic_api_key: str | None = Field(default=None, alias="ANTHROPIC_API_KEY")
+    openai_default_model: str | None = Field(default=None, alias="OPENAI_DEFAULT_MODEL")
+    anthropic_default_model: str | None = Field(
+        default=None,
+        alias="ANTHROPIC_DEFAULT_MODEL",
+    )
     use_fake_providers: bool = Field(default=False, alias="USE_FAKE_PROVIDERS")
 
     policies_path: str = Field(default="config/policies.yaml", alias="POLICIES_PATH")

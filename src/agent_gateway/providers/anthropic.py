@@ -23,14 +23,16 @@ class AnthropicProvider(LLMProvider):
         api_key: str | None,
         pricing: PricingCatalog | None = None,
         default_model: str = "claude-3-5-haiku-latest",
+        supported_models: list[str] | None = None,
     ) -> None:
         self._api_key = api_key
         self._pricing = pricing
         self._default_model = default_model
+        models = supported_models or [default_model]
         self._capabilities = ProviderCapabilities(
             name="anthropic",
             display_name="Anthropic",
-            models=["claude-3-5-haiku-latest", "claude-3-5-sonnet-latest"],
+            models=models,
             default_model=default_model,
             quality_score=0.88,
             enabled=api_key is not None,

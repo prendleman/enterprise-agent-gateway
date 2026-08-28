@@ -46,6 +46,18 @@ class ProviderRouter:
             self._circuit_breakers[provider_name] = CircuitBreaker(name=provider_name)
         return self._circuit_breakers[provider_name]
 
+    def available_providers(self) -> list[LLMProvider]:
+        return self._registry.available()
+
+    def get_provider(self, name: str) -> LLMProvider | None:
+        return self._registry.get(name)
+
+    def default_provider(self) -> LLMProvider:
+        providers = self.available_providers()
+        if not providers:
+            raise AllProvidersFailedError("No providers are registered")
+        return providers[0]
+
     async def complete(
         self,
         request: CompletionRequest,

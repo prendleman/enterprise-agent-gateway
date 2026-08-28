@@ -12,9 +12,10 @@ import structlog
 from agent_gateway.agent.models import AgentPlan, AgentRunResult, ToolCallRecord, UsageInfo
 from agent_gateway.agent.planner import build_plan
 from agent_gateway.agent.prompts import ANSWER_SYSTEM_PROMPT
+from agent_gateway.agent.usage import RunUsage
 from agent_gateway.auth.context import AuthContext
 from agent_gateway.guardrails.input import validate_input
-from agent_gateway.guardrails.output import AgentAnswer, validate_citations, validate_output
+from agent_gateway.guardrails.output import AgentAnswer, ground_citations, validate_output
 from agent_gateway.guardrails.policy import (
     PolicyConfig,
     PolicyDecision,
@@ -34,6 +35,7 @@ from agent_gateway.observability.metrics import (
 from agent_gateway.providers.base import (
     ChatMessage,
     CompletionRequest,
+    CompletionResponse,
     RoutingPolicy,
 )
 from agent_gateway.providers.router import AllProvidersFailedError, ProviderRouter
@@ -88,6 +90,10 @@ class AgentLoop:
         cost_ceiling = (
             max_cost_usd if max_cost_usd is not None else self._policy.default_max_cost_usd
         )
+        run_usage = RunUsage()
+        fallback_used = False
+        primary_provider = ""
+        primary_model = ""
 
         blocked = validate_input(query, self._policy)
         if blocked:
@@ -96,28 +102,36 @@ class AgentLoop:
                 AGENT_POLICY_DENIALS_TOTAL.labels(reason=decision.reason).inc()
             raise InputBlockedError(blocked[0].reason)
 
-        provider_response = await self._route_initial_completion(
+        initial_response = await self._routed_completion(
             query=query,
             routing_policy=routing_policy,
             preferred_provider=preferred_provider,
             metadata=metadata,
+            run_usage=run_usage,
+            cost_ceiling=cost_ceiling,
         )
-        fallback_used = (
-            preferred_provider is not None and provider_response.provider != preferred_provider
-        )
-        self._enforce_cost_ceiling(provider_response.cost_usd or 0.0, cost_ceiling)
+        primary_provider = initial_response.provider
+        primary_model = initial_response.model
+        if preferred_provider and initial_response.provider != preferred_provider:
+            fallback_used = True
 
-        plan = await build_plan(
+        plan, planner_fallback = await build_plan(
             query=query,
-            provider=self._router._registry.get(provider_response.provider)
-            or self._router._registry.available()[0],
-            model=provider_response.model,
+            router=self._router,
+            routing_policy=routing_policy,
+            preferred_provider=preferred_provider,
+            model=self._default_model(),
             metadata=metadata,
+            run_usage=run_usage,
         )
+        self._enforce_cost_ceiling(run_usage.estimated_cost_usd, cost_ceiling)
+        if planner_fallback:
+            fallback_used = True
 
         tool_records: list[ToolCallRecord] = []
         tool_context = ToolContext(auth=auth, request_id=request_id)
         collected_citations: list[dict[str, str]] = []
+        allowed_source_ids: set[str] = set()
         tool_outputs: list[dict[str, Any]] = []
         retrieval_used = False
 
@@ -149,6 +163,10 @@ class AgentLoop:
             if result.status == "succeeded":
                 tool_outputs.append({"tool": step.tool, "data": result.data})
                 collected_citations.extend(result.citations)
+                for citation in result.citations:
+                    source_id = citation.get("source_id") or citation.get("id")
+                    if source_id:
+                        allowed_source_ids.add(source_id)
                 if step.tool.startswith("search_"):
                     retrieval_used = True
                     count = int(result.data.get("count", 0))
@@ -162,39 +180,39 @@ class AgentLoop:
             routing_policy=routing_policy,
             preferred_provider=preferred_provider,
             metadata=metadata,
+            run_usage=run_usage,
             cost_ceiling=cost_ceiling,
         )
         if answer_fallback:
             fallback_used = True
 
-        citation_error = validate_citations(
+        grounded_answer, citation_error = ground_citations(
             answer,
+            allowed_source_ids=allowed_source_ids,
             retrieval_used=retrieval_used,
             policy=self._policy,
         )
         if citation_error:
             policy_decisions.append(
                 PolicyDecision(
-                    reason=citation_error, action="validate_output", allowed=False
+                    reason=citation_error,
+                    action="validate_output",
+                    allowed=False,
                 ).model_dump()
             )
             AGENT_POLICY_DENIALS_TOTAL.labels(reason=citation_error).inc()
 
-        validated = validate_output(answer, self._policy)
+        validated = validate_output(grounded_answer, self._policy)
         latency_ms = int((time.perf_counter() - started) * 1000)
-        usage = UsageInfo(
-            input_tokens=provider_response.input_tokens,
-            output_tokens=provider_response.output_tokens,
-            estimated_cost_usd=provider_response.cost_usd or 0.0,
-        )
-        self._record_usage(provider_response.provider, provider_response.model, usage)
+        usage = UsageInfo(**run_usage.to_usage_info())
+        self._record_usage(primary_provider or "unknown", primary_model or "unknown", usage)
 
         return AgentRunResult(
             answer=validated.answer,
-            citations=validated.citations or collected_citations,
+            citations=validated.citations or grounded_answer.citations,
             tool_calls=tool_records,
-            provider_used=provider_response.provider,
-            model_used=provider_response.model,
+            provider_used=primary_provider,
+            model_used=primary_model,
             fallback_used=fallback_used,
             latency_ms=latency_ms,
             usage=usage,
@@ -203,32 +221,39 @@ class AgentLoop:
             retrieval_used=retrieval_used,
         )
 
-    async def _route_initial_completion(
+    async def _routed_completion(
         self,
         *,
-        query: str,
+        query: str | None = None,
+        request: CompletionRequest | None = None,
         routing_policy: RoutingPolicy,
         preferred_provider: str | None,
         metadata: dict[str, Any] | None,
-    ):
-        request = CompletionRequest(
+        run_usage: RunUsage,
+        cost_ceiling: float,
+    ) -> CompletionResponse:
+        completion_request = request or CompletionRequest(
             model=self._default_model(),
-            messages=[ChatMessage(role="user", content=query)],
+            messages=[ChatMessage(role="user", content=query or "")],
             metadata=metadata or {},
         )
         try:
             response = await self._router.complete(
-                request,
+                completion_request,
                 policy=routing_policy,
                 preferred_provider=preferred_provider,
             )
             AGENT_PROVIDER_ATTEMPTS_TOTAL.labels(
-                provider=response.provider, outcome="success"
+                provider=response.provider,
+                outcome="success",
             ).inc()
-            return response
         except AllProvidersFailedError as exc:
             AGENT_PROVIDER_ATTEMPTS_TOTAL.labels(provider="none", outcome="failed").inc()
             raise AgentLoopError(str(exc)) from exc
+
+        run_usage.add(response)
+        self._enforce_cost_ceiling(run_usage.estimated_cost_usd, cost_ceiling)
+        return response
 
     async def _build_answer(
         self,
@@ -240,6 +265,7 @@ class AgentLoop:
         routing_policy: RoutingPolicy,
         preferred_provider: str | None,
         metadata: dict[str, Any] | None,
+        run_usage: RunUsage,
         cost_ceiling: float,
     ) -> tuple[AgentAnswer, bool]:
         payload = {
@@ -261,7 +287,8 @@ class AgentLoop:
             policy=routing_policy,
             preferred_provider=preferred_provider,
         )
-        self._enforce_cost_ceiling((response.cost_usd or 0.0), cost_ceiling)
+        run_usage.add(response)
+        self._enforce_cost_ceiling(run_usage.estimated_cost_usd, cost_ceiling)
         answer_fallback = preferred_provider is not None and response.provider != preferred_provider
         parsed = self._parse_answer(response.content)
         if parsed is not None:
@@ -294,17 +321,13 @@ class AgentLoop:
         return "Completed the requested lookup with available tenant-scoped records."
 
     def _default_model(self) -> str:
-        providers = self._router._registry.available()
-        if not providers:
-            msg = "No providers configured"
-            raise AgentLoopError(msg)
-        return providers[0].capabilities.default_model
+        return self._router.default_provider().capabilities.default_model
 
     @staticmethod
-    def _enforce_cost_ceiling(estimated_cost: float, ceiling: float) -> None:
-        if estimated_cost > ceiling:
+    def _enforce_cost_ceiling(cumulative_cost: float, ceiling: float) -> None:
+        if cumulative_cost > ceiling:
             raise CostCeilingExceededError(
-                f"Estimated cost {estimated_cost:.4f} exceeds ceiling {ceiling:.4f}"
+                f"Estimated cumulative cost {cumulative_cost:.4f} exceeds ceiling {ceiling:.4f}"
             )
 
     @staticmethod

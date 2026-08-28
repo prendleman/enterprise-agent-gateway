@@ -9,7 +9,7 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from starlette.responses import Response
 
 from agent_gateway.agent.loop import AgentLoop, CostCeilingExceededError, InputBlockedError
-from agent_gateway.api.dependencies import get_agent_loop, get_auth_context
+from agent_gateway.api.dependencies import enforce_tenant_rate_limit, get_agent_loop
 from agent_gateway.api.errors import CostLimitError, PolicyViolationError, ServiceUnavailableError
 from agent_gateway.api.models import (
     AgentRunRequest,
@@ -29,7 +29,7 @@ router = APIRouter()
 async def run_agent(
     body: AgentRunRequest,
     request: Request,
-    auth: AuthContext = Depends(get_auth_context),  # noqa: B008
+    auth: AuthContext = Depends(enforce_tenant_rate_limit),  # noqa: B008
     loop: AgentLoop = Depends(get_agent_loop),  # noqa: B008
 ) -> AgentRunResponse:
     """Execute a bounded agent run scoped to the authenticated tenant."""

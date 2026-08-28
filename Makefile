@@ -1,4 +1,4 @@
-.PHONY: help install sync run demo verify test eval coverage lint fmt \
+.PHONY: help install sync run demo verify test eval eval-live coverage lint fmt \
         docker-build docker-up docker-down compose-config \
         k8s-build k8s-apply outage load
 
@@ -23,8 +23,11 @@ verify: ## Lint, test, and evaluation thresholds
 test: ## Run pytest
 	$(UV) run python -m pytest -q
 
-eval: ## Run golden-set evaluation
+eval: ## Run deterministic golden-set evaluation (CI gate)
 	$(UV) run python scripts/evaluate.py
+
+eval-live: ## Optional live-provider evaluation (requires API keys)
+	$(UV) run python scripts/evaluate_live.py
 
 coverage: ## Run tests with HTML coverage report
 	$(UV) run python -m coverage run -m pytest -q

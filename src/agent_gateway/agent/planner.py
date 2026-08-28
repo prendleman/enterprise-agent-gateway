@@ -8,7 +8,9 @@ from typing import Any
 
 from agent_gateway.agent.models import AgentPlan, PlannedToolStep
 from agent_gateway.agent.prompts import PLANNER_SYSTEM_PROMPT
-from agent_gateway.providers.base import ChatMessage, CompletionRequest, LLMProvider
+from agent_gateway.agent.usage import RunUsage
+from agent_gateway.providers.base import ChatMessage, CompletionRequest, RoutingPolicy
+from agent_gateway.providers.router import ProviderRouter
 
 
 def _keyword_plan(query: str) -> AgentPlan:
@@ -108,11 +110,14 @@ def _parse_plan_json(content: str) -> AgentPlan | None:
 async def build_plan(
     *,
     query: str,
-    provider: LLMProvider,
+    router: ProviderRouter,
+    routing_policy: RoutingPolicy,
+    preferred_provider: str | None,
     model: str,
-    metadata: dict[str, Any] | None = None,
-) -> AgentPlan:
-    """Ask provider for a structured plan or fall back to heuristics."""
+    metadata: dict[str, Any] | None,
+    run_usage: RunUsage,
+) -> tuple[AgentPlan, bool]:
+    """Ask routed provider for a structured plan or fall back to heuristics."""
     request = CompletionRequest(
         model=model,
         messages=[
@@ -121,9 +126,15 @@ async def build_plan(
         ],
         metadata={**(metadata or {}), "structured": "plan"},
     )
-    response = await provider.complete(request)
+    response = await router.complete(
+        request,
+        policy=routing_policy,
+        preferred_provider=preferred_provider,
+    )
+    run_usage.add(response)
+    fallback_used = preferred_provider is not None and response.provider != preferred_provider
     parsed = _parse_plan_json(response.content)
     if parsed is not None:
         parsed.steps = parsed.steps[:3]
-        return parsed
-    return _keyword_plan(query)
+        return parsed, fallback_used
+    return _keyword_plan(query), fallback_used

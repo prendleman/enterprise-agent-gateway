@@ -78,6 +78,7 @@ class EvaluationRunner:
         dataset_path: Path | None = None,
         thresholds: EvaluationThresholds | None = None,
         deterministic: bool = True,
+        max_cases: int | None = None,
     ) -> None:
         self._settings = settings
         self._dataset_path = (
@@ -85,6 +86,7 @@ class EvaluationRunner:
         )
         self._thresholds = thresholds or EvaluationThresholds()
         self._deterministic = deterministic
+        self._max_cases = max_cases
         self._auth = AuthService(settings)
 
     async def run(self) -> EvaluationReport:
@@ -92,6 +94,8 @@ class EvaluationRunner:
         run_id = uuid.uuid4().hex[:12]
         started_at = datetime.now(tz=UTC)
         cases = load_golden_cases(self._dataset_path)
+        if self._max_cases is not None:
+            cases = cases[: self._max_cases]
 
         await close_db()
         await init_db(self._settings)
@@ -123,10 +127,15 @@ class EvaluationRunner:
                 tags=case.tags,
             )
 
-        router = _build_router(
-            self._settings,
-            force_primary_failure=case.force_primary_failure,
-        )
+        if self._deterministic:
+            router = _build_router(
+                self._settings,
+                force_primary_failure=case.force_primary_failure,
+            )
+        else:
+            from agent_gateway.providers.registry import build_registry
+
+            router = ProviderRouter(build_registry(self._settings))
         loop = AgentLoop(router=router)
         routing = RoutingPolicy(case.routing_policy)
 

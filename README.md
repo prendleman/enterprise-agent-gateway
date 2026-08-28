@@ -1,6 +1,8 @@
 # Enterprise Agent Gateway
 
-**Portfolio platform** demonstrating an enterprise-grade AI agent gateway for commercial real estate (CRE) operations — governed orchestration, multi-tenant RBAC, provider failover, golden-set evaluation, and deployment scaffolding.
+[![CI](https://github.com/prendleman/enterprise-agent-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/prendleman/enterprise-agent-gateway/actions/workflows/ci.yml)
+
+**Portfolio platform** demonstrating an enterprise-grade AI agent gateway for commercial real estate (CRE) operations — governed orchestration, multi-tenant RBAC, provider failover, deterministic evaluation gates, and deployment scaffolding.
 
 > **Disclaimer:** This is an independent portfolio project. It is **not** affiliated with JLL or any employer and **has not** been deployed to production.
 
@@ -29,9 +31,9 @@ See [docs/architecture.md](docs/architecture.md) for the full system design.
 |------|--------------|
 | **API** | `POST /v1/agents/run`, health probes, Prometheus `/metrics`, RFC 9457 errors |
 | **Auth** | Demo API keys → tenant + role; tool permissions by role |
-| **Agent** | Bounded tool loop, cost ceiling, citations, policy decisions |
-| **Reliability** | Retry, circuit breaker, provider failover, idempotency, rate limit |
-| **Evaluation** | 32-case golden set with CI thresholds (100% safety/fallback) |
+| **Agent** | Bounded tool loop, **cumulative request-level cost ceiling**, citation grounding, policy decisions |
+| **Reliability** | Retry, circuit breaker, provider failover, idempotency, **per-tenant rate limiting at ingress** |
+| **Evaluation** | **32-case deterministic regression and safety suite** enforced in CI; optional live-model tier |
 | **Observability** | structlog JSON, Prometheus metrics, Grafana dashboard |
 | **Deploy** | Dockerfile, docker-compose, Kustomize, Terraform ECS example |
 
@@ -118,6 +120,9 @@ make verify
 # Golden-set evaluation (writes artifacts/evaluation-latest.{json,md})
 make eval
 
+# Optional live-model evaluation (requires OPENAI_API_KEY / ANTHROPIC_API_KEY)
+make eval-live
+
 # Eight-step portfolio demo
 make demo
 
@@ -149,7 +154,7 @@ make docker-up
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 (admin / admin) |
 
-The Dockerfile is multi-stage, runs as non-root UID `10001`, and includes a `/health/live` healthcheck.
+The Dockerfile is multi-stage, runs as non-root UID `10001`, includes a `/health/live` healthcheck, and installs the `[providers]` extra so OpenAI/Anthropic SDKs are available when API keys are configured.
 
 ## Kubernetes (Kustomize)
 

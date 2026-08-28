@@ -4,15 +4,16 @@ from __future__ import annotations
 
 from functools import lru_cache
 
-from fastapi import Header, Request
+from fastapi import Depends, Header, Request
 
 from agent_gateway.agent.loop import AgentLoop
-from agent_gateway.api.errors import UnauthorizedError
+from agent_gateway.api.errors import RateLimitError, UnauthorizedError
 from agent_gateway.auth.context import AuthContext
 from agent_gateway.auth.service import AuthService
 from agent_gateway.config.settings import Settings, get_settings
 from agent_gateway.providers.registry import ProviderRegistry, build_registry
 from agent_gateway.providers.router import ProviderRouter
+from agent_gateway.reliability.rate_limit import RateLimiter
 
 
 @lru_cache
@@ -31,6 +32,11 @@ def get_provider_router() -> ProviderRouter:
 
 
 @lru_cache
+def get_rate_limiter() -> RateLimiter:
+    return RateLimiter(limit_per_minute=get_settings().rate_limit_per_minute)
+
+
+@lru_cache
 def get_agent_loop() -> AgentLoop:
     return AgentLoop(router=get_provider_router())
 
@@ -40,6 +46,7 @@ def reset_cached_dependencies() -> None:
     get_auth_service.cache_clear()
     get_provider_registry.cache_clear()
     get_provider_router.cache_clear()
+    get_rate_limiter.cache_clear()
     get_agent_loop.cache_clear()
 
 
@@ -54,6 +61,15 @@ async def get_auth_context(
     auth = get_auth_service().authenticate(raw_key)
     if auth is None:
         raise UnauthorizedError("Invalid or missing API key")
+    return auth
+
+
+async def enforce_tenant_rate_limit(
+    auth: AuthContext = Depends(get_auth_context),  # noqa: B008
+) -> AuthContext:
+    """Reject requests when the authenticated tenant exceeds its rate limit."""
+    if not await get_rate_limiter().acquire(key=auth.tenant_id):
+        raise RateLimitError("Tenant rate limit exceeded")
     return auth
 
 
