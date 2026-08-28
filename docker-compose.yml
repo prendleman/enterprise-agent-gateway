@@ -1,0 +1,61 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: enterprise-agent-gateway:local
+    ports:
+      - "8000:8000"
+    environment:
+      APP_ENV: demo
+      DEMO_MODE: "true"
+      USE_FAKE_PROVIDERS: "true"
+      LOG_JSON: "true"
+      DATABASE_URL: sqlite+aiosqlite:///./artifacts/agent_gateway.db
+    volumes:
+      - api-artifacts:/app/artifacts
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+    networks:
+      - observability
+
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    depends_on:
+      api:
+        condition: service_healthy
+    networks:
+      - observability
+
+  grafana:
+    image: grafana/grafana:11.4.0
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - observability
+
+volumes:
+  api-artifacts:
+
+networks:
+  observability:
+    driver: bridge

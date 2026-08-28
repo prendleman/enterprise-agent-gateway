@@ -1,0 +1,62 @@
+# Synthetic model pricing for demo / local development.
+# Copy to model_pricing.yaml and adjust as needed.
+
+providers:
+  openai:
+    models:
+      gpt-4o-mini:
+        input_per_1m: 0.15
+        output_per_1m: 0.60
+        quality_score: 0.72
+      gpt-4o:
+        input_per_1m: 2.50
+        output_per_1m: 10.00
+        quality_score: 0.92
+  anthropic:
+    models:
+      claude-3-5-haiku-latest:
+        input_per_1m: 0.80
+        output_per_1m: 4.00
+        quality_score: 0.78
+      claude-3-5-sonnet-latest:
+        input_per_1m: 3.00
+        output_per_1m: 15.00
+        quality_score: 0.95
+  fake:
+    models:
+      fake-mini:
+        input_per_1m: 0.05
+        output_per_1m: 0.10
+        quality_score: 0.40
+      fake-pro:
+        input_per_1m: 0.20
+        output_per_1m: 0.40
+        quality_score: 0.65
+      fake-openai-mini:
+        input_per_1m: 0.08
+        output_per_1m: 0.16
+        quality_score: 0.55
+      fake-anthropic-mini:
+        input_per_1m: 0.12
+        output_per_1m: 0.24
+        quality_score: 0.60
+  fake-openai:
+    models:
+      fake-openai-mini:
+        input_per_1m: 0.08
+        output_per_1m: 0.16
+        quality_score: 0.72
+      shared-eval-model:
+        input_per_1m: 12.0
+        output_per_1m: 12.0
+        quality_score: 0.72
+  fake-anthropic:
+    models:
+      fake-anthropic-mini:
+        input_per_1m: 0.12
+        output_per_1m: 0.24
+        quality_score: 0.78
+      shared-eval-model:
+        input_per_1m: 12.0
+        output_per_1m: 12.0
+        quality_score: 0.78

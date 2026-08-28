@@ -1,0 +1,22 @@
+# Role-based tool permissions (demo portfolio).
+permissions:
+  search_policy_documents:
+    employee: true
+    analyst: true
+    facilities_manager: true
+    platform_admin: true
+  search_work_orders:
+    employee: false
+    analyst: true
+    facilities_manager: true
+    platform_admin: true
+  get_building_summary:
+    employee: false
+    analyst: true
+    facilities_manager: true
+    platform_admin: true
+  create_maintenance_request:
+    employee: false
+    analyst: false
+    facilities_manager: true
+    platform_admin: true

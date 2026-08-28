@@ -1,0 +1,28 @@
+# Example inputs for `terraform validate` — replace with your account values before apply.
+# This portfolio module assumes an existing VPC and subnets; it does not create networking.
+
+aws_region = "us-east-1"
+project_name = "agent-gateway"
+environment  = "demo"
+
+vpc_id = "vpc-0123456789abcdef0"
+
+private_subnet_ids = [
+  "subnet-0123456789abcdef0",
+  "subnet-0fedcba9876543210",
+]
+
+public_subnet_ids = [
+  "subnet-0abcdef0123456789",
+  "subnet-0987654321fedcba0",
+]
+
+container_image = "123456789012.dkr.ecr.us-east-1.amazonaws.com/enterprise-agent-gateway:0.1.0"
+
+# Secrets Manager ARNs are inputs only — create secrets out-of-band.
+openai_secret_arn    = "arn:aws:secretsmanager:us-east-1:123456789012:secret:agent-gateway/openai-AbCdEf"
+anthropic_secret_arn = "arn:aws:secretsmanager:us-east-1:123456789012:secret:agent-gateway/anthropic-XyZ123"
+
+tags = {
+  Owner = "portfolio-demo"
+}

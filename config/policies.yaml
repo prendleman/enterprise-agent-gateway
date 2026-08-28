@@ -1,0 +1,24 @@
+# Guardrail and policy configuration for demo mode.
+max_query_length: 2000
+max_tool_steps: 3
+default_max_cost_usd: 0.05
+provider_timeout_seconds: 30.0
+require_citations_when_retrieval_used: true
+
+injection_patterns:
+  - "(?i)ignore (all )?(previous|prior) instructions"
+  - "(?i)disregard (your|the) (system )?prompt"
+  - "(?i)reveal (your|the) (system )?prompt"
+  - "(?i)show (me )?(your|the) (api )?key"
+  - "(?i)bypass (security|guardrails|policy)"
+  - "(?i)jailbreak"
+
+refusal_patterns:
+  - "(?i)(api[_-]?key|secret|password|credential)"
+  - "(?i)cross[- ]tenant"
+  - "(?i)other tenant"
+
+redaction_patterns:
+  email: "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+  phone: "\\b\\d{3}[-.]?\\d{3}[-.]?\\d{4}\\b"
+  account_id: "\\bACC-[A-Z0-9]{6,12}\\b"

@@ -1,0 +1,112 @@
+[
+  {
+    "id": "bldg-001",
+    "name": "Willis Tower",
+    "address": "233 S Wacker Dr",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60606",
+    "square_feet": 4500000,
+    "property_type": "office",
+    "year_built": 1973
+  },
+  {
+    "id": "bldg-002",
+    "name": "One Prudential Plaza",
+    "address": "130 E Randolph St",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60601",
+    "square_feet": 1500000,
+    "property_type": "office",
+    "year_built": 1955
+  },
+  {
+    "id": "bldg-003",
+    "name": "Aon Center",
+    "address": "200 E Randolph St",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60601",
+    "square_feet": 3400000,
+    "property_type": "office",
+    "year_built": 1974
+  },
+  {
+    "id": "bldg-004",
+    "name": "Marina City",
+    "address": "300 N State St",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60654",
+    "square_feet": 900000,
+    "property_type": "mixed_use",
+    "year_built": 1964
+  },
+  {
+    "id": "bldg-005",
+    "name": "Tribune Tower",
+    "address": "435 N Michigan Ave",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60611",
+    "square_feet": 750000,
+    "property_type": "office",
+    "year_built": 1925
+  },
+  {
+    "id": "bldg-006",
+    "name": "Chicago Board of Trade Building",
+    "address": "141 W Jackson Blvd",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60604",
+    "square_feet": 1200000,
+    "property_type": "office",
+    "year_built": 1930
+  },
+  {
+    "id": "bldg-007",
+    "name": "875 North Michigan Avenue",
+    "address": "875 N Michigan Ave",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60611",
+    "square_feet": 2800000,
+    "property_type": "mixed_use",
+    "year_built": 1969
+  },
+  {
+    "id": "bldg-008",
+    "name": "Merchandise Mart",
+    "address": "222 Merchandise Mart Plaza",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60654",
+    "square_feet": 4000000,
+    "property_type": "retail",
+    "year_built": 1930
+  },
+  {
+    "id": "bldg-009",
+    "name": "Wrigley Building",
+    "address": "410 N Michigan Ave",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60611",
+    "square_feet": 450000,
+    "property_type": "office",
+    "year_built": 1924
+  },
+  {
+    "id": "bldg-010",
+    "name": "CNA Center",
+    "address": "333 S Wabash Ave",
+    "city": "Chicago",
+    "state": "IL",
+    "zip_code": "60604",
+    "square_feet": 1100000,
+    "property_type": "office",
+    "year_built": 1972
+  }
+]

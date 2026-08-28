@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: agent-gateway
+  labels:
+    app.kubernetes.io/name: enterprise-agent-gateway
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: enterprise-agent-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP
