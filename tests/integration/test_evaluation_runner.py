@@ -64,6 +64,26 @@ async def test_evaluation_runner_deterministic_passes_thresholds(eval_settings: 
 
 
 @pytest.mark.asyncio
+async def test_evaluation_seeds_synthetic_data_when_not_demo_mode(
+    eval_settings: Settings,
+) -> None:
+    from sqlalchemy import func, select
+
+    from agent_gateway.storage.database import get_session_factory
+    from agent_gateway.storage.models import Building
+
+    live_like_settings = eval_settings.model_copy(update={"demo_mode": False})
+    runner = EvaluationRunner(live_like_settings, deterministic=True, max_cases=1)
+    await runner.run()
+
+    factory = get_session_factory(live_like_settings)
+    async with factory() as session:
+        count = await session.scalar(select(func.count()).select_from(Building))
+    await close_db()
+    assert count == 10
+
+
+@pytest.mark.asyncio
 async def test_evaluation_runner_is_repeatable(eval_settings: Settings) -> None:
     runner = EvaluationRunner(eval_settings, deterministic=True)
     first = await runner.run()

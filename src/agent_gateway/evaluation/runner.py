@@ -89,6 +89,11 @@ class EvaluationRunner:
         self._max_cases = max_cases
         self._auth = AuthService(settings)
 
+    async def _prepare_evaluation_database(self) -> None:
+        """Initialize a clean synthetic CRE database for evaluation runs."""
+        await init_db(self._settings)
+        await seed_database(self._settings, clear_existing=True)
+
     async def run(self) -> EvaluationReport:
         """Run all golden cases and return an aggregated report."""
         run_id = uuid.uuid4().hex[:12]
@@ -98,9 +103,7 @@ class EvaluationRunner:
             cases = cases[: self._max_cases]
 
         await close_db()
-        await init_db(self._settings)
-        if self._settings.is_demo:
-            await seed_database(self._settings)
+        await self._prepare_evaluation_database()
 
         case_results: list[CaseResult] = []
         for case in cases:

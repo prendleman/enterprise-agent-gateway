@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --all-extras
+
+      - name: Verify (lint, tests, eval thresholds)
+        run: uv run python scripts/verify.py
+
+      - name: Coverage report
+        run: |
+          uv run python -m coverage run -m pytest -q
+          uv run python -m coverage report
+          uv run python -m coverage xml -o coverage.xml
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage.xml
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build container image
+        run: docker build -t enterprise-agent-gateway:ci .
+
+      - name: Validate docker compose config
+        run: docker compose config
+
+  kustomize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Validate Kustomize overlay
+        run: kubectl kustomize deploy/kubernetes/overlays/local
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+
+      - name: Terraform fmt (aws-ecs)
+        run: terraform fmt -check -recursive
+        working-directory: deploy/terraform/aws-ecs
+
+      - name: Terraform init and validate (aws-ecs)
+        run: |
+          terraform init -backend=false
+          terraform validate
+        working-directory: deploy/terraform/aws-ecs
