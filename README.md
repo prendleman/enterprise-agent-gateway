@@ -1,4 +1,6 @@
 # Enterprise Agent Gateway
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 
 [![CI](https://github.com/prendleman/enterprise-agent-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/prendleman/enterprise-agent-gateway/actions/workflows/ci.yml)
 
